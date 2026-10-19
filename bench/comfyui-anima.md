@@ -10,8 +10,11 @@ targets. The text encoder (fp16) and the VAE are part of the total too.
 - Model: `anima-aesthetic-v1.1` (weights bf16, `manual cast: None`), text encoder
   `qwen_3_06b_base` (fp16), WanVAE
 - Sampler: 30 steps, DCW/SMC Auto ('Cosmos / Wan'), dynamic VRAM loading
-- Resolution, seed, sampler and scheduler names were not in the log; the after
-  run must use the same workflow and seed.
+- Same workflow (resolution, steps, sampler) before and after; resolution and
+  sampler names were not in the log. Seeds were not fixed and differ between
+  runs. With the resolution and step count fixed the seed does not change the
+  amount of work, so the timings compare, but the images are not pairwise
+  identical and image output was not compared.
 
 ## Before (unlock off) — 2026-10-19
 
