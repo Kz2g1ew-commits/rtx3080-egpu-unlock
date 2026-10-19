@@ -1,0 +1,3 @@
+# gpu-unlock eGPU: the card left the bus, so the next plug-in gets a new attempt.
+# A card that was not power cycled is refused by the module itself (warm card).
+ACTION=="remove", SUBSYSTEM=="pci", ENV{PCI_ID}=="10DE:2206", RUN+="/usr/bin/rm -f /run/gpu-unlock/$kernel"

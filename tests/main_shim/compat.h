@@ -24,6 +24,7 @@
 struct pci_dev {
 	const char *name;
 	unsigned short vendor, device;
+	unsigned short subsystem_vendor, subsystem_device;
 	void *driver;
 	int refs;
 	pthread_mutex_t lock;

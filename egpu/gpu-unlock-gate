@@ -1,0 +1,50 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# modprobe's install hook for nvidia: runs every time something loads nvidia
+# (nvidia-smi, CUDA, prime-run, nvidia_drm/uvm as a dependency), before
+# nvidia binds any card. A USB4 eGPU appears only after boltd authorizes the
+# enclosure, too late for an initramfs module, but nvidia is never autoloaded
+# here, so this is the last moment the card is still unbound.
+#
+# Each unbound RTX 3080 gets one attempt per plug-in. The udev rule clears the
+# marker when the card leaves the bus. Always exits 0 so nvidia still loads.
+set -u
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+# Callers such as `timeout 3 nvidia-smi` signal the whole process group. Do
+# not let that interrupt an unlock half way; the ignore is inherited by modprobe.
+trap '' TERM INT HUP
+
+ENABLE=0
+[ -r /etc/gpu-unlock-egpu.conf ] && . /etc/gpu-unlock-egpu.conf
+[ "$ENABLE" = 1 ] || exit 0
+# One-off disable from the boot menu.
+grep -qw 'gpu_unlock.egpu=0' /proc/cmdline && exit 0
+
+state=/run/gpu-unlock
+mkdir -p "$state" || exit 0
+exec 9>"$state/lock"
+flock 9
+
+log() { logger -t gpu-unlock-gate -- "$*"; }
+
+for dev in /sys/bus/pci/devices/*; do
+	[ "$(cat "$dev/vendor" 2>/dev/null)" = 0x10de ] || continue
+	[ "$(cat "$dev/device" 2>/dev/null)" = 0x2206 ] || continue
+	bdf=${dev##*/}
+	[ -e "$dev/driver" ] && continue
+	[ -e "$state/$bdf" ] && continue
+	: >"$state/$bdf"
+	log "unlocking $bdf before nvidia"
+	if modprobe gpu_unlock targets="$bdf"; then
+		# Result is in the kernel log: "gpu_unlock: unlocked" or "unlock failed".
+		log "gpu_unlock finished for $bdf; see journalctl -k -g gpu_unlock"
+	else
+		log "modprobe gpu_unlock failed for $bdf"
+	fi
+	# Unloads unless a failed unlock pinned it to keep DMA buffers; then it
+	# stays until power off, and a later modprobe is a no-op.
+	modprobe -r gpu_unlock 2>/dev/null
+done
+exit 0

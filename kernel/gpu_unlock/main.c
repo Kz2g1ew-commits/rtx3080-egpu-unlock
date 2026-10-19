@@ -5,13 +5,12 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 
+#include "board.h"
 #include "unlock_610.h"
 
 static char *targets;
 module_param(targets, charp, 0444);
-MODULE_PARM_DESC(targets, "\"all\" or comma-separated PCI addresses of RTX 3090 cards to unlock");
-
-#define RTX_3090 0x2204
+MODULE_PARM_DESC(targets, "\"all\" or comma-separated PCI addresses of RTX 3080 cards to unlock");
 
 static ASYNC_DOMAIN_EXCLUSIVE(unlock_domain);
 static struct gpu_unlock_610_shared shared;
@@ -53,14 +52,14 @@ static void report_unmatched(void)
 	for (entry = targets; *entry; entry = *end ? end + 1 : end) {
 		end = strchrnul(entry, ',');
 		pdev = NULL;
-		while ((pdev = pci_get_device(PCI_VENDOR_ID_NVIDIA, RTX_3090, pdev)))
+		while ((pdev = pci_get_device(PCI_VENDOR_ID_NVIDIA, GU_RTX_3080, pdev)))
 			if (strlen(pci_name(pdev)) == end - entry &&
 			    !strncasecmp(pci_name(pdev), entry, end - entry))
 				break;
 		if (pdev)
 			pci_dev_put(pdev);
 		else
-			pr_err("gpu_unlock: no RTX 3090 at \"%.*s\"\n",
+			pr_err("gpu_unlock: no RTX 3080 at \"%.*s\"\n",
 			       (int)(end - entry), entry);
 	}
 }
@@ -77,9 +76,15 @@ static int __init gpu_unlock_init(void)
 	all = !strcmp(targets, "all");
 	if (!all)
 		report_unmatched();
-	while ((pdev = pci_get_device(PCI_VENDOR_ID_NVIDIA, RTX_3090, pdev))) {
+	while ((pdev = pci_get_device(PCI_VENDOR_ID_NVIDIA, GU_RTX_3080, pdev))) {
 		if (!all && !listed(pci_name(pdev)))
 			continue;
+		/* Unknown boards are refused before any firmware request or MMIO. */
+		if (!gu_board_find(pdev->subsystem_vendor, pdev->subsystem_device)) {
+			pci_err(pdev, "gpu_unlock: board %04x:%04x not verified, skipped\n",
+				pdev->subsystem_vendor, pdev->subsystem_device);
+			continue;
+		}
 		if (!shared.gsp) {
 			ret = gpu_unlock_610_load_shared(pdev, &shared);
 			if (ret) {
@@ -103,5 +108,5 @@ static void __exit gpu_unlock_exit(void)
 module_init(gpu_unlock_init);
 module_exit(gpu_unlock_exit);
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("RTX 3090 pre-driver BF16 unlock");
+MODULE_DESCRIPTION("RTX 3080 pre-driver BF16 unlock");
 MODULE_VERSION("1.0.0");

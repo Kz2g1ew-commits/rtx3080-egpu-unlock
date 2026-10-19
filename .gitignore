@@ -24,3 +24,4 @@
 /debian/gpu-unlock-*/
 modules.order
 Module.symvers
+/bench/results/

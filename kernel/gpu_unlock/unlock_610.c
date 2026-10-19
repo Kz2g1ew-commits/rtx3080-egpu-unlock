@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/timekeeping.h>
 
+#include "board.h"
 #include "diagnostic.h"
 #include "gfw_eval.h"
 #include "prep_610.h"
@@ -399,7 +400,7 @@ static int falcon_hs(struct unlock_transaction_work *work, const struct falcon_e
 			u32 plm, engine, identity;
 
 			if (diag_pci_dword(work, false, PCI_VENDOR_ID, &identity) ||
-			    identity != 0x220410de ||
+			    identity != GU_PCI_IDENTITY ||
 			    read_bar(work, eng->base + 0x100, &engine) || engine == ~0u ||
 			    (engine & 0xffff0000u) == 0xbadf0000u ||
 			    read_bar(work, GU_FEAT_PLM_OFFSET, &plm))
@@ -1226,7 +1227,7 @@ static int wait_post_flr_gfw(struct unlock_transaction_work *work)
 	for (;;) {
 		sample = (struct gpu_unlock_gfw_sample){ };
 		ret = diag_pci_dword(work, false, PCI_VENDOR_ID, &identity);
-		sample.config_ok = !ret && identity == 0x220410de;
+		sample.config_ok = !ret && identity == GU_PCI_IDENTITY;
 		if (!sample.config_ok) {
 			ret = -ENODEV;
 			break;
@@ -1301,7 +1302,7 @@ static int unlock_transaction_reset(struct unlock_transaction_work *work)
 	/* The saved image predates BME. No transient restore with BME set. */
 	pci_restore_state(work->pdev);
 	if (diag_pci_dword(work, false, PCI_VENDOR_ID, &identity) ||
-	    identity != 0x220410de ||
+	    identity != GU_PCI_IDENTITY ||
 	    diag_pci_word(work, false, PCI_COMMAND, &command) ||
 	    command == 0xffff || (command & PCI_COMMAND_MASTER) ||
 	    !(command & PCI_COMMAND_MEMORY))

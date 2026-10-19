@@ -187,6 +187,7 @@ static void add(const char *name, unsigned short device, bool bound)
 	struct pci_dev *pdev = &devices[device_count++];
 
 	*pdev = (struct pci_dev){ .name = name, .vendor = PCI_VENDOR_ID_NVIDIA, .device = device,
+				  .subsystem_vendor = 0x1462, .subsystem_device = 0x3890,
 				  .driver = bound ? &driver_marker : NULL, .refs = 1 };
 	pthread_mutex_init(&pdev->lock, NULL);
 }
@@ -218,13 +219,13 @@ static bool logged(const char *text)
 
 int main(void)
 {
-	/* Every unbound RTX 3090 at once; other models and bound cards left alone. */
+	/* Every unbound RTX 3080 at once; other models and bound cards left alone. */
 	reset("all");
-	add("0000:01:00.0", RTX_3090, false);
-	add("0000:21:00.0", RTX_3090, false);
+	add("0000:01:00.0", GU_RTX_3080, false);
+	add("0000:21:00.0", GU_RTX_3080, false);
 	add("0000:31:00.0", 0x2208, false);
-	add("0000:41:00.0", RTX_3090, true);
-	add("0000:61:00.0", RTX_3090, false);
+	add("0000:41:00.0", GU_RTX_3080, true);
+	add("0000:61:00.0", GU_RTX_3080, false);
 	fake.expected_concurrent = 3;
 	run();
 	assert(fake.max_in_flight == 3 && fake.started == 3);
@@ -236,20 +237,20 @@ int main(void)
 
 	/* A list picks cards in any case; the rest are not touched. */
 	reset("0000:61:00.0,0000:0A:00.0");
-	add("0000:01:00.0", RTX_3090, false);
-	add("0000:0a:00.0", RTX_3090, false);
-	add("0000:61:00.0", RTX_3090, false);
+	add("0000:01:00.0", GU_RTX_3080, false);
+	add("0000:0a:00.0", GU_RTX_3080, false);
+	add("0000:61:00.0", GU_RTX_3080, false);
 	fake.expected_concurrent = 2;
 	run();
 	assert(fake.max_in_flight == 2 && !fake.unlocks[0] && fake.unlocks[1] && fake.unlocks[2]);
 	assert(fake.loads == 1 && fake.load_dev == &devices[1] && fake.releases == 1);
-	assert(!logged("no RTX 3090"));
+	assert(!logged("no RTX 3080"));
 	puts("list: only listed cards, concurrently PASS");
 
 	/* One card failing leaves the others unlocked. */
 	reset("all");
-	add("0000:01:00.0", RTX_3090, false);
-	add("0000:21:00.0", RTX_3090, false);
+	add("0000:01:00.0", GU_RTX_3080, false);
+	add("0000:21:00.0", GU_RTX_3080, false);
 	fake.fail_unlock[0] = -EIO;
 	fake.expected_concurrent = 2;
 	run();
@@ -260,8 +261,8 @@ int main(void)
 
 	/* Without the shared firmware no card is attempted. */
 	reset("all");
-	add("0000:01:00.0", RTX_3090, false);
-	add("0000:21:00.0", RTX_3090, false);
+	add("0000:01:00.0", GU_RTX_3080, false);
+	add("0000:21:00.0", GU_RTX_3080, false);
 	fake.fail_load = -ENOENT;
 	run();
 	assert(fake.loads == 1 && !fake.started && !fake.releases);
@@ -270,16 +271,27 @@ int main(void)
 
 	/* Unmatched entries are reported; nothing to load for no cards. */
 	reset("0000:99:00.0");
-	add("0000:01:00.0", RTX_3090, false);
+	add("0000:01:00.0", GU_RTX_3080, false);
 	run();
 	assert(!fake.loads && !fake.started && fake.releases == 1);
-	assert(logged("gpu_unlock: no RTX 3090 at \"0000:99:00.0\""));
+	assert(logged("gpu_unlock: no RTX 3080 at \"0000:99:00.0\""));
 	puts("unmatched target: reported, nothing loaded PASS");
+
+	/* A board that is not in the verified list is never touched. */
+	reset("all");
+	add("0000:01:00.0", GU_RTX_3080, false);
+	add("0000:21:00.0", GU_RTX_3080, false);
+	devices[0].subsystem_device = 0x3891;
+	fake.expected_concurrent = 1;
+	run();
+	assert(!fake.unlocks[0] && fake.unlocks[1] && fake.load_dev == &devices[1]);
+	assert(logged("0000:01:00.0: gpu_unlock: board 1462:3891 not verified, skipped"));
+	puts("unverified board: skipped before firmware PASS");
 
 	/* No opt-in on the command line: the module does nothing. */
 	for (int empty = 0; empty < 2; empty++) {
 		reset(empty ? "" : NULL);
-		add("0000:01:00.0", RTX_3090, false);
+		add("0000:01:00.0", GU_RTX_3080, false);
 		run();
 		assert(!fake.loads && !fake.started && !fake.releases && !fake.log[0]);
 	}

@@ -11,3 +11,7 @@
 *.bin export-ignore
 *.cu export-ignore
 /debian -export-ignore
+/egpu -export-ignore
+/tools -export-ignore
+/bench -export-ignore
+/README.upstream.md -export-ignore

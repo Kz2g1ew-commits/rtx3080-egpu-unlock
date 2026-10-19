@@ -163,7 +163,7 @@ void release_firmware(const struct firmware *f) {if(f){free((void *)f->data);fre
 void __module_get(void *p) {fake.pins++;}
 int pci_read_config_word(struct pci_dev *p,int r,u16 *v) {*v=r==PCI_COMMAND?fake.cmd:r==PCI_VENDOR_ID?0x10de:0;return 0;}
 int pci_read_config_dword(struct pci_dev *p,int r,u32 *v) {
-    *v=r==PCI_VENDOR_ID?(fake.flrs && fake.lost_identity?~0u:0x220410de):(u32)fake.bar_bad;return 0;
+    *v=r==PCI_VENDOR_ID?(fake.flrs && fake.lost_identity?~0u:0x220610de):(u32)fake.bar_bad;return 0;
 }
 int pci_write_config_word(struct pci_dev *p,int r,u16 v) {assert(r==PCI_COMMAND);fake.cmd=v;return 0;}
 int pcie_capability_read_word(struct pci_dev *p,int r,u16 *v) {*v=r==PCI_EXP_DEVSTA?fake.pending:0;return 0;}
@@ -496,7 +496,7 @@ int main(int argc, char **argv) {
         assert(fake.starts==1);
         if(mode==0)assert(!ret);
         if(mode==1)assert(ret==-ETIMEDOUT && fake.now<=5000100);
-        if(mode==1)assert(strstr(fake.log,"early PLM failed: pci=0x220410de"));
+        if(mode==1)assert(strstr(fake.log,"early PLM failed: pci=0x220610de"));
         if(mode==2)assert(ret==-ENODEV);
         if(mode==3)assert(ret==-EIO);
     }
