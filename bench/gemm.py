@@ -78,7 +78,7 @@ def bench(args):
             s = r["smi"] or {}
             print(f"{name:13} n={n:5} {r['tflops']:8.2f} TFLOPS  err={r['rel_err']:.1e}  "
                   f"sm={s.get('sm_mhz', '?')}MHz {s.get('power_w', '?')}W {s.get('temp_c', '?')}C")
-    data = {"label": args.label, "time": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    data = {"label": args.label, "time": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "gpu": props.name, "sm_count": props.multi_processor_count,
             "torch": torch.__version__, "cuda": torch.version.cuda,
             "cudnn": torch.backends.cudnn.version(), "results": results}

@@ -1,6 +1,6 @@
 # GEMM throughput: before / after the unlock
 
-`bench/gemm.py`, PyTorch 2.14.1+cu130, square GEMM, 2 s warmup, median of 30
+`bench/gemm.py` (raw data: `bench/results/off.json`, `on.json`), PyTorch 2.14.1+cu130, square GEMM, 2 s warmup, median of 30
 CUDA-event samples. FP16/BF16 accumulate in FP32. Card and host: see the
 README's test environment. Limits during both runs: 250 W, SM max 1800 MHz.
 
